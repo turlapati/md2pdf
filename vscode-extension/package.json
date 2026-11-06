@@ -2,7 +2,7 @@
   "name": "md2pdf",
   "displayName": "md2pdf — Markdown + Mermaid to PDF (offline)",
   "description": "Export the current Markdown file to PDF with GFM tables, task lists, footnotes, syntax-highlighted code and Mermaid diagrams. Pure Rust/WASM, no Node/browser/LaTeX, works fully offline.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "hari",
   "license": "MIT",
   "repository": {

@@ -6,7 +6,7 @@ members = ["crates/md2pdf-core", "crates/md2pdf-cli"]
 exclude = ["crates/md2pdf-wasm", "third_party/mermaid-rs-renderer"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.92"
 license = "MIT"
@@ -20,6 +20,7 @@ typst-layout = "0.15"
 typst-assets = { version = "0.15", features = ["fonts"] }
 pulldown-cmark = { version = "0.13", default-features = false }
 mermaid-rs-renderer = { version = "0.3", default-features = false }
+mitex = "0.2"
 anyhow = "1"
 thiserror = "2"
 time = { version = "0.3", features = ["local-offset"] }

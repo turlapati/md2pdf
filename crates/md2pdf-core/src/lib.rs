@@ -59,7 +59,9 @@ impl std::str::FromStr for RemoteImages {
         match s.to_ascii_lowercase().replace(['-', '_'], "").as_str() {
             "alttext" | "alt" => Ok(RemoteImages::AltText),
             "embed" => Ok(RemoteImages::Embed),
-            _ => Err(format!("unknown remote-images mode '{s}' (use alt-text or embed)")),
+            _ => Err(format!(
+                "unknown remote-images mode '{s}' (use alt-text or embed)"
+            )),
         }
     }
 }
@@ -120,7 +122,11 @@ pub struct Output {
 
 /// Translate Markdown to Typst source without compiling (for debugging and
 /// for users who want to hand-tune the output in Typst).
-pub fn to_typst(md: &str, cfg: &Config, assets: &HashMap<String, Vec<u8>>) -> (String, Vec<String>) {
+pub fn to_typst(
+    md: &str,
+    cfg: &Config,
+    assets: &HashMap<String, Vec<u8>>,
+) -> (String, Vec<String>) {
     let t = markdown::Translator::new(cfg, assets).translate(md);
     (t.source, t.warnings)
 }
@@ -144,9 +150,7 @@ pub fn render(md: &str, cfg: &Config, assets: &HashMap<String, Vec<u8>>) -> Resu
         ));
     }
 
-    let today = cfg
-        .today
-        .and_then(|(y, m, d)| Datetime::from_ymd(y, m, d));
+    let today = cfg.today.and_then(|(y, m, d)| Datetime::from_ymd(y, m, d));
     let world = world::MemWorld::new(t.source, t.files, &cfg.extra_fonts, today);
 
     let compiled = typst::compile::<PagedDocument>(&world);
@@ -169,7 +173,10 @@ pub fn render(md: &str, cfg: &Config, assets: &HashMap<String, Vec<u8>>) -> Resu
     })
 }
 
-fn format_diagnostics(errs: &typst::ecow::EcoVec<typst::diag::SourceDiagnostic>, world: &world::MemWorld) -> String {
+fn format_diagnostics(
+    errs: &typst::ecow::EcoVec<typst::diag::SourceDiagnostic>,
+    world: &world::MemWorld,
+) -> String {
     use typst::{World, WorldExt};
     let main = world.source(world.main()).ok();
     let mut out = String::new();
@@ -213,14 +220,27 @@ mod tests {
     #[test]
     fn warns_about_uncovered_glyphs() {
         let out = run("Latin é is fine; 日本語 is not.\n");
-        assert!(out.warnings.iter().any(|w| w.contains("no glyph")), "{:?}", out.warnings);
+        assert!(
+            out.warnings.iter().any(|w| w.contains("no glyph")),
+            "{:?}",
+            out.warnings
+        );
         let clean = run("Plain Latin, Ελληνικά, Кириллица — “quotes”.\n");
-        assert!(!clean.warnings.iter().any(|w| w.contains("no glyph")), "{:?}", clean.warnings);
+        assert!(
+            !clean.warnings.iter().any(|w| w.contains("no glyph")),
+            "{:?}",
+            clean.warnings
+        );
     }
 
     #[test]
     fn typst_code_in_prose_is_inert() {
-        let src = to_typst("#set page(paper: \"a0\") #{panic(\"x\")}\n", &Config::default(), &HashMap::new()).0;
+        let src = to_typst(
+            "#set page(paper: \"a0\") #{panic(\"x\")}\n",
+            &Config::default(),
+            &HashMap::new(),
+        )
+        .0;
         assert!(src.contains("\\#set page"), "{src}");
         let out = run("#set page(paper: \"a0\")\n");
         assert_eq!(out.pages, 1);
@@ -234,8 +254,14 @@ mod tests {
         let out = run(BADGE_MD);
         assert!(out.warnings.is_empty(), "{:?}", out.warnings);
         let src = to_typst(BADGE_MD, &Config::default(), &HashMap::new()).0;
-        assert!(src.contains("#link(\"https://example.com/actions\")[ci];"), "{src}");
-        assert!(src.contains("#link(\"https://example.com/logo\")[logo];"), "{src}");
+        assert!(
+            src.contains("#link(\"https://example.com/actions\")[ci];"),
+            "{src}"
+        );
+        assert!(
+            src.contains("#link(\"https://example.com/logo\")[logo];"),
+            "{src}"
+        );
         assert!(!src.contains("image(\""), "{src}");
     }
 
@@ -243,15 +269,27 @@ mod tests {
     fn remote_images_embed_supplied_bytes() {
         assert_eq!(
             remote_image_urls(BADGE_MD),
-            vec!["https://example.com/ci.svg".to_string(), "https://example.com/logo".to_string()]
+            vec![
+                "https://example.com/ci.svg".to_string(),
+                "https://example.com/logo".to_string()
+            ]
         );
-        let cfg = Config { remote_images: RemoteImages::Embed, ..Default::default() };
+        let cfg = Config {
+            remote_images: RemoteImages::Embed,
+            ..Default::default()
+        };
         let mut assets = HashMap::new();
         assets.insert("https://example.com/ci.svg".to_string(), SVG.to_vec());
         let src = to_typst(BADGE_MD, &cfg, &assets).0;
-        assert!(src.contains("#box(baseline: 20%, image(\"/assets/0.svg\""), "{src}");
+        assert!(
+            src.contains("#box(baseline: 20%, image(\"/assets/0.svg\""),
+            "{src}"
+        );
         // Not supplied (fetch failed): falls back to alt text.
-        assert!(src.contains("#link(\"https://example.com/logo\")[logo];"), "{src}");
+        assert!(
+            src.contains("#link(\"https://example.com/logo\")[logo];"),
+            "{src}"
+        );
         let out = render(BADGE_MD, &cfg, &assets).expect("render");
         assert!(out.pdf.starts_with(b"%PDF"));
         assert!(out.warnings.is_empty(), "{:?}", out.warnings);
@@ -259,7 +297,154 @@ mod tests {
 
     #[test]
     fn mermaid_renders_or_degrades() {
-        let out = run("```mermaid\nflowchart LR\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]\n```\n");
+        let out =
+            run("```mermaid\nflowchart LR\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]\n```\n");
         assert!(out.pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn latex_math_is_typeset() {
+        let md = "# Euler $e^{i\\pi}$\n\nInline $\\frac{1}{2}$ and $\\alpha$.\n\n$$\n\\sum_i x_i\n$$\n\n```math\n\\int_0^1 x^2 \\, dx\n```\n\n```latex\n\\beta\n```\n";
+        let (src, warnings) = to_typst(md, &Config::default(), &HashMap::new());
+        assert!(warnings.is_empty(), "{warnings:?}\n{src}");
+        assert!(src.contains("#math.equation(block: false, $"), "{src}");
+        assert!(src.contains("#math.equation(block: true, $"), "{src}");
+        assert!(src.contains("frac"), "{src}");
+        assert!(src.contains("alpha"), "{src}");
+        assert!(
+            src.contains("integral") || src.contains("integral_0"),
+            "{src}"
+        );
+        assert!(src.contains("beta"), "{src}");
+        assert!(src.contains("<euler"), "{src}");
+        assert!(!src.contains("unknown font"), "{src}");
+        let out = run(md);
+        assert!(out.pdf.starts_with(b"%PDF"));
+        assert!(
+            !out.warnings.iter().any(|w| w.contains("unknown font")),
+            "{:?}",
+            out.warnings
+        );
+    }
+
+    #[test]
+    fn invalid_latex_math_falls_back_to_code() {
+        let md = "Broken $\\frac{1$.\n\n```math\n\\begin{nope}\n```\n";
+        let (src, warnings) = to_typst(md, &Config::default(), &HashMap::new());
+        assert!(
+            warnings.iter().any(|w| w.contains("could not be typeset")),
+            "{warnings:?}"
+        );
+        assert!(src.contains("#raw("), "{src}");
+        let out = run(md);
+        assert!(out.pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn math_cannot_inject_typst_code() {
+        let md = "$#panic(\"x\")$ and $1 // comment$.\n\n$\\text{#set page(paper: \"a0\")}$\n";
+        let (src, warnings) = to_typst(md, &Config::default(), &HashMap::new());
+        assert!(warnings.is_empty(), "{warnings:?}\n{src}");
+        // MiTeX escapes a raw `#` as `\#` and spaces the letters, so neither
+        // call survives as Typst code. The preamble's own `#set` is unrelated.
+        assert!(!src.contains("#panic("), "{src}");
+        assert!(!src.contains("paper: \"a0\""), "{src}");
+        let out = run(md);
+        assert!(out.pdf.starts_with(b"%PDF"));
+        assert_eq!(out.pages, 1);
+    }
+
+    #[test]
+    fn latex_text_and_symbols_are_typeset() {
+        // Same constructs as a risk-measure note: \text, \mathbb, \frac, \sum,
+        // \left/\right, \qquad, subscripts. Wording here is not that note.
+        let md = r#"
+The value at time $t$ is positive when $V(t) > 0$.
+
+$$
+E(t) = \max(V(t), 0)
+$$
+
+$$
+Q_q(t) = \inf\{x : \mathbb{P}[E(t) \leq x] \geq q\}
+$$
+
+$$
+m(t) = \mathbb{E}[\max(V(t), 0)]
+$$
+
+$$
+\text{Level } L(t_k) = \max\left(\text{Level } L(t_{k-1}), L(t_k)\right)
+$$
+
+$$
+\bar{L} = \frac{\sum_{k=1}^{K} \text{Level } L(t_k) \cdot \Delta t_k}{\sum_{k=1}^{K} \Delta t_k}
+$$
+
+$$
+A = \text{Level} \times \alpha
+$$
+
+where $\alpha = 1.4$.
+
+$$
+S(t) = \sum_{i=1}^{N} X_i(t) \qquad \text{(net)}
+$$
+
+$$
+Y(t) = \max(V(t) - C(t), 0)
+$$
+"#;
+        let (src, warnings) = to_typst(md, &Config::default(), &HashMap::new());
+        assert!(warnings.is_empty(), "{warnings:?}\n{src}");
+        assert!(src.contains("#textmath["), "{src}");
+        assert!(src.contains("bb("), "{src}");
+        assert!(src.contains("frac"), "{src}");
+        assert!(!src.contains("#raw("), "{src}");
+        let out = run(md);
+        assert!(out.pdf.starts_with(b"%PDF"));
+        assert!(
+            !out.warnings
+                .iter()
+                .any(|w| w.contains("typst:") || w.contains("could not be typeset")),
+            "{:?}",
+            out.warnings
+        );
+    }
+
+    #[test]
+    fn unpaired_dollar_and_code_span_stay_text() {
+        let price = "Price $5 today.\n";
+        let (src, warnings) = to_typst(price, &Config::default(), &HashMap::new());
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(src.contains("\\$5"), "{src}");
+        assert!(!src.contains("#math.equation"), "{src}");
+        assert!(run(price).pdf.starts_with(b"%PDF"));
+
+        // Kept in its own paragraph: a later `$` would otherwise close `$5`.
+        let code = "Use `$x$` in markdown.\n";
+        let (src, warnings) = to_typst(code, &Config::default(), &HashMap::new());
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(src.contains("#raw("), "{src}");
+        assert!(!src.contains("#math.equation"), "{src}");
+        assert!(run(code).pdf.starts_with(b"%PDF"));
+
+        let escaped = "Hostile \\$dollar\\$.\n";
+        let (src, warnings) = to_typst(escaped, &Config::default(), &HashMap::new());
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(src.contains("\\$dollar\\$"), "{src}");
+        assert!(!src.contains("#math.equation"), "{src}");
+    }
+
+    #[test]
+    fn wide_display_math_still_compiles() {
+        let md = "$$\n\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}+\\frac{1}{2}\n$$\n";
+        let out = run(md);
+        assert!(out.pdf.starts_with(b"%PDF"));
+        assert!(
+            !out.warnings.iter().any(|w| w.contains("typst:")),
+            "{:?}",
+            out.warnings
+        );
     }
 }

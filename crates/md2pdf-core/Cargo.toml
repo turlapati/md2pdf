@@ -15,4 +15,5 @@ typst-layout = { workspace = true }
 typst-assets = { workspace = true }
 pulldown-cmark = { workspace = true }
 mermaid-rs-renderer = { workspace = true }
+mitex = { workspace = true }
 thiserror = { workspace = true }

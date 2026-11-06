@@ -16,7 +16,7 @@ footnotes[^1]. Hard line break follows.
 Second line after the break.
 
 Hostile characters that must render literally: # hash, @ at, [brackets],
-*stars*, \_underscores\_, $dollar$, <angle>, ~tilde, -- double dash,
+*stars*, \_underscores\_, \$dollar\$, <angle>, ~tilde, -- double dash,
 --- triple dash, // slashes, a raw URL https://example.com/path?q=1, a
 backslash \ here, and "smart" 'quotes'.
 

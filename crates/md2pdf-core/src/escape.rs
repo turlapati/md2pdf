@@ -60,7 +60,13 @@ pub fn slug(text: &str) -> String {
 /// Only letters, digits, `-`, `_` are safe inside a Typst label.
 pub fn label_safe(s: &str) -> String {
     s.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 

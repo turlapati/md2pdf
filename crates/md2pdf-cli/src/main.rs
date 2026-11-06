@@ -84,14 +84,17 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let input = cli.input.clone().expect("clap enforces INPUT unless --list-fonts");
+    let input = cli
+        .input
+        .clone()
+        .expect("clap enforces INPUT unless --list-fonts");
     let (md, base_dir) = if input.as_os_str() == "-" {
         let mut s = String::new();
         io::stdin().read_to_string(&mut s)?;
         (s, PathBuf::from("."))
     } else {
-        let s = fs::read_to_string(&input)
-            .with_context(|| format!("reading {}", input.display()))?;
+        let s =
+            fs::read_to_string(&input).with_context(|| format!("reading {}", input.display()))?;
         let base = input.parent().map(Path::to_path_buf).unwrap_or_default();
         (s, base)
     };
@@ -101,8 +104,8 @@ fn main() -> Result<()> {
         .remote_images
         .parse()
         .map_err(|e: String| anyhow::anyhow!(e))?;
-    let today = time::OffsetDateTime::now_local()
-        .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
+    let today =
+        time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
     let cfg = Config {
         paper,
         font_size: cli.font_size,
@@ -139,7 +142,9 @@ fn main() -> Result<()> {
                 }
                 Err(e) => {
                     if !cli.quiet {
-                        eprintln!("warning: cannot fetch remote image {url} (showing alt text): {e}");
+                        eprintln!(
+                            "warning: cannot fetch remote image {url} (showing alt text): {e}"
+                        );
                     }
                 }
             }

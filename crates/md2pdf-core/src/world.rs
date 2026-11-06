@@ -38,13 +38,19 @@ fn load_fonts(extra: &[Vec<u8>]) -> FontSet {
             fonts.push(font);
         }
     }
-    FontSet { book: LazyHash::new(book), fonts }
+    FontSet {
+        book: LazyHash::new(book),
+        fonts,
+    }
 }
 
 /// Names of every font family available to the compiler (for diagnostics).
 pub fn font_families(extra: &[Vec<u8>]) -> Vec<String> {
     let set = font_set(extra);
-    set.book.families().map(|(name, _)| name.to_string()).collect()
+    set.book
+        .families()
+        .map(|(name, _)| name.to_string())
+        .collect()
 }
 
 fn font_set(extra: &[Vec<u8>]) -> Arc<FontSet> {
@@ -75,7 +81,10 @@ pub fn uncovered_chars(text: &str, extra: &[Vec<u8>]) -> Vec<char> {
         if matches!(ch as u32, 0xFE00..=0xFE0F | 0x200B..=0x200D | 0x2060) {
             continue;
         }
-        let covered = set.fonts.iter().any(|f| f.info().coverage.contains(ch as u32));
+        let covered = set
+            .fonts
+            .iter()
+            .any(|f| f.info().coverage.contains(ch as u32));
         if !covered {
             missing.push(ch);
         }
