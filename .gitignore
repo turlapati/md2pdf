@@ -13,6 +13,9 @@ examples/**/*.pdf
 examples/**/*.typ
 examples/**/*.png
 
+# Golden test scratch (committed references live in testdata/golden/)
+testdata/golden-out/
+
 # Internal notes
 REVIEW.md
 

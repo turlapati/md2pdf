@@ -1,7 +1,7 @@
 [package]
 name = "md2pdf-wasm"
 description = "wasm-bindgen binding for md2pdf-core (Node / VS Code extension host)"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/turlapati/md2pdf"

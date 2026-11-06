@@ -60,12 +60,28 @@ std::fs::write("out.pdf", out.pdf)?;
 for w in out.warnings { eprintln!("warning: {w}"); }
 ```
 
+## Golden visual tests
+
+Selected examples are rendered to PDF with a fixed `--date`, rasterized with
+`pdftoppm`, and compared to PNGs in `testdata/golden/`. Requires
+[Poppler](https://poppler.freedesktop.org/) (`pdftoppm`).
+
+```sh
+cargo build -p md2pdf
+bash scripts/golden-test.sh                 # compare
+UPDATE_GOLDEN=1 bash scripts/golden-test.sh  # regenerate references
+```
+
+Regenerate on Linux (same as CI) when fonts or layout change, so the committed
+PNGs match `ubuntu-latest`.
+
 ## CI
 
 `ci.yml` runs on every pull request and push to `master`: `cargo test` and
-`clippy` on Linux and Windows, renders `examples/kitchen-sink.md`, builds the
-WASM module and packages the `.vsix`. Each run uploads a `vsix` artifact; it can
-also be started manually from the Actions tab (*Run workflow*).
+`clippy` on Linux and Windows, golden visual tests (Ubuntu + Poppler), renders
+`examples/kitchen-sink.md`, builds the WASM module and packages the `.vsix`.
+Each run uploads a `vsix` artifact; it can also be started manually from the
+Actions tab (*Run workflow*).
 
 ## Releasing
 

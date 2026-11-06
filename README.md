@@ -3,13 +3,16 @@
 [![ci](https://github.com/turlapati/md2pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/turlapati/md2pdf/actions/workflows/ci.yml)
 [![release](https://github.com/turlapati/md2pdf/actions/workflows/release.yml/badge.svg)](https://github.com/turlapati/md2pdf/releases/latest)
 
-Convert GitHub-Flavored Markdown with Mermaid diagrams to PDF — as a VS Code
-extension or a single command-line binary. Everything is built in: no Node,
-browser, LaTeX, Pandoc or system fonts required, and it works fully offline.
+Convert GitHub-Flavored Markdown with LaTeX math and Mermaid diagrams to PDF —
+as a VS Code extension or a single command-line binary. Everything is built in:
+no Node, browser, LaTeX, Pandoc or system fonts required, and it works fully
+offline.
 
 ```mermaid
 flowchart LR
     MD[Markdown] -->|pulldown-cmark| TS[Typst source]
+    MD --> MX[dollar math and math fences]
+    MX -->|mitex| TS
     MD --> MF[mermaid code blocks]
     MF -->|mermaid-rs-renderer| SVG[SVG virtual files]
     TS --> TW[Typst compiler<br/>in-memory World]
@@ -23,10 +26,10 @@ flowchart LR
 * Bold, italic, strikethrough, inline code, links and local images (PNG, JPEG, GIF, SVG, WebP)
 * Nested bullet and numbered lists, task lists, tables with column alignment
 * Fenced and indented code blocks with syntax highlighting
-* LaTeX math (`$…$`, `$$…$$`, and fenced `math` blocks)
+* LaTeX math (`$…$`, `$$…$$`, and fenced `math` / `latex` / `tex` blocks)
 * Mermaid diagrams (23 diagram types)
 * Block quotes, GitHub alerts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`)
-* Footnotes, definition lists, horizontal rules, `<br>` line breaks
+* Footnotes, definition lists, horizontal rules, `<br>` / `<sub>` / `<sup>` / `<kbd>`
 * Document title from YAML front matter (`title:`) or the first heading
 * A4 or US Letter paper
 
@@ -99,6 +102,7 @@ md2pdf --list-fonts                               # show available font families
 | `--body-font <NAME>` / `--mono-font <NAME>` | Font families for body text and code |
 | `--font-dir <DIR>` | Load extra `.ttf` / `.otf` fonts from a folder |
 | `--remote-images <alt-text\|embed>` | How `http(s)` images are handled (default `alt-text`) |
+| `--date <YYYY-MM-DD>` | Document date for PDF metadata (default: today) |
 | `--emit-typst` | Write the intermediate Typst source instead of a PDF |
 | `--list-fonts` | List available font families and exit |
 | `-q, --quiet` | Suppress warnings |
@@ -119,8 +123,7 @@ handled according to `md2pdf.remoteImages` (VS Code) or `--remote-images` (CLI):
 
 ## Known limitations
 
-* A LaTeX formula that cannot be converted is shown as code, with a warning. A `$` with no closing `$` stays as text, so `$5` is unchanged.
-* Raw HTML is ignored, except `<br>` and comments.
+* Raw HTML is ignored, except `<br>`, `<sub>`, `<sup>`, `<kbd>`, and comments.
 * Links to other local files appear as plain text, since they can't be followed inside a PDF.
 * The built-in fonts cover Latin, Greek and Cyrillic. For Chinese, Japanese,
   Korean or emoji, add a suitable font with `--font-dir`.

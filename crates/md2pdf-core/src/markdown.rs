@@ -34,6 +34,7 @@ pub fn parser_options() -> Options {
         | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
         | Options::ENABLE_GFM
         | Options::ENABLE_MATH
+        | Options::ENABLE_DEFINITION_LIST
 }
 
 /// Local (non-URL) image paths referenced by the document, as written.
@@ -512,15 +513,26 @@ impl<'a> Translator<'a> {
     }
 
     fn html(&mut self, h: &str) {
-        let t = h.trim().to_ascii_lowercase();
-        if t == "<br>" || t == "<br/>" || t == "<br />" {
-            self.out().push_str("#linebreak();");
-        } else if t.starts_with("<!--") {
-            // comments: drop silently
-        } else {
-            if !self.html_warned {
-                self.warn("raw HTML is not rendered (dropped). Use Markdown syntax instead.");
-                self.html_warned = true;
+        let t = h.trim();
+        let lower = t.to_ascii_lowercase();
+        match lower.as_str() {
+            "<br>" | "<br/>" | "<br />" => self.out().push_str("#linebreak();"),
+            "<sub>" => self.out().push_str("#sub["),
+            "</sub>" => self.out().push_str("];"),
+            "<sup>" => self.out().push_str("#super["),
+            "</sup>" => self.out().push_str("];"),
+            "<kbd>" => self.out().push_str(
+                "#box(fill: luma(240), stroke: 0.5pt + luma(180), inset: (x: 4pt, y: 1pt), outset: (y: 2pt), radius: 2pt, baseline: 15%)[",
+            ),
+            "</kbd>" => self.out().push_str("];"),
+            _ if lower.starts_with("<!--") => {} // comments: drop silently
+            _ => {
+                if !self.html_warned {
+                    self.warn(
+                        "raw HTML is not rendered (dropped), except <br>, <sub>, <sup>, and <kbd>.",
+                    );
+                    self.html_warned = true;
+                }
             }
         }
     }
@@ -595,7 +607,7 @@ impl<'a> Translator<'a> {
             }
             Tag::FootnoteDefinition(_) => {} // handled in pre-pass
             Tag::DefinitionList => self.out().push_str("\n#terms(\n"),
-            Tag::DefinitionListTitle => self.out().push_str("  (["),
+            Tag::DefinitionListTitle => self.out().push_str("  terms.item(["),
             Tag::DefinitionListDefinition => self.out().push_str(", ["),
             Tag::Table(aligns) => {
                 let cols = aligns.len().max(1);

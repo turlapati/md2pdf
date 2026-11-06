@@ -447,4 +447,41 @@ $$
             out.warnings
         );
     }
+
+    #[test]
+    fn definition_lists_are_typeset() {
+        let md = "Term one\n: Definition of term one.\n\nTerm two\n: Definition of term two.\n";
+        let (src, warnings) = to_typst(md, &Config::default(), &HashMap::new());
+        assert!(warnings.is_empty(), "{warnings:?}\n{src}");
+        assert!(src.contains("#terms("), "{src}");
+        assert!(src.contains("terms.item(["), "{src}");
+        assert!(src.contains("Term one"), "{src}");
+        assert!(src.contains("Definition of term one"), "{src}");
+        let out = run(md);
+        assert!(out.pdf.starts_with(b"%PDF"));
+        assert!(
+            !out.warnings.iter().any(|w| w.contains("deprecated")),
+            "{:?}",
+            out.warnings
+        );
+    }
+
+    #[test]
+    fn allowed_html_tags_are_rendered() {
+        let md = "H<sub>2</sub>O and x<sup>2</sup> and <kbd>Ctrl</kbd>.\n\n<span>dropped</span>\n";
+        let (src, warnings) = to_typst(md, &Config::default(), &HashMap::new());
+        assert!(src.contains("#sub[2];"), "{src}");
+        assert!(src.contains("#super[2];"), "{src}");
+        assert!(src.contains("#box("), "{src}");
+        assert!(src.contains("Ctrl"), "{src}");
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("raw HTML is not rendered")),
+            "{warnings:?}"
+        );
+        assert!(!src.contains("span"), "{src}");
+        let out = run(md);
+        assert!(out.pdf.starts_with(b"%PDF"));
+    }
 }

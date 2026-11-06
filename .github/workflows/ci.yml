@@ -29,10 +29,29 @@ jobs:
       - run: cargo test --workspace
       - run: cargo clippy --workspace --all-targets
       - name: Render kitchen-sink example
-        run: cargo run -p md2pdf -- examples/kitchen-sink.md --toc
+        run: cargo run -p md2pdf -- examples/kitchen-sink.md --toc --date 2026-01-15
       - if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v7
         with: { name: kitchen-sink-pdf, path: examples/kitchen-sink.pdf }
+
+  golden:
+    name: golden visual tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: cargo build -p md2pdf
+      - name: Compare golden PNGs
+        run: bash scripts/golden-test.sh
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-mismatch
+          path: testdata/golden-out/
+          if-no-files-found: ignore
 
   extension:
     name: wasm + vsix

@@ -67,6 +67,11 @@ struct Cli {
     /// Suppress warnings
     #[arg(short, long)]
     quiet: bool,
+
+    /// Document date for PDF metadata and Typst `datetime.today()` (`YYYY-MM-DD`).
+    /// Defaults to today. Fixed dates make golden / visual tests reproducible.
+    #[arg(long, value_name = "YYYY-MM-DD")]
+    date: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -104,8 +109,14 @@ fn main() -> Result<()> {
         .remote_images
         .parse()
         .map_err(|e: String| anyhow::anyhow!(e))?;
-    let today =
-        time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
+    let today = match &cli.date {
+        Some(s) => parse_date(s)?,
+        None => {
+            let now =
+                time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
+            (now.year(), now.month() as u8, now.day())
+        }
+    };
     let cfg = Config {
         paper,
         font_size: cli.font_size,
@@ -115,7 +126,7 @@ fn main() -> Result<()> {
         body_font: cli.body_font.clone(),
         mono_font: cli.mono_font.clone(),
         extra_fonts,
-        today: Some((today.year(), today.month() as u8, today.day())),
+        today: Some(today),
         remote_images,
     };
 
@@ -213,6 +224,29 @@ fn fetch(url: &str) -> Result<Vec<u8>> {
         .limit(MAX_REMOTE_IMAGE_BYTES)
         .read_to_vec()?;
     Ok(bytes)
+}
+
+fn parse_date(s: &str) -> Result<(i32, u8, u8)> {
+    let parts: Vec<_> = s.split('-').collect();
+    if parts.len() != 3 {
+        bail!("invalid --date '{s}' (use YYYY-MM-DD)");
+    }
+    let year: i32 = parts[0]
+        .parse()
+        .with_context(|| format!("invalid --date year in '{s}'"))?;
+    let month: u8 = parts[1]
+        .parse()
+        .with_context(|| format!("invalid --date month in '{s}'"))?;
+    let day: u8 = parts[2]
+        .parse()
+        .with_context(|| format!("invalid --date day in '{s}'"))?;
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        bail!("invalid --date '{s}' (use YYYY-MM-DD)");
+    }
+    if time::Date::from_calendar_date(year, time::Month::try_from(month)?, day).is_err() {
+        bail!("invalid --date '{s}'");
+    }
+    Ok((year, month, day))
 }
 
 fn load_fonts(dir: &Path) -> Result<Vec<Vec<u8>>> {

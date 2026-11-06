@@ -143,6 +143,7 @@ Remote image (skipped, no network): ![remote](https://example.com/x.png)
 ---
 
 Raw HTML like <span style="color:red">this</span> is dropped, but a `<br>`<br>works as a line break.
+Allowed tags: H<sub>2</sub>O, x<sup>2</sup>, and <kbd>Ctrl</kbd>+<kbd>P</kbd>.
 
 <!-- an HTML comment, dropped silently -->
 
