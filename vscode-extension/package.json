@@ -2,7 +2,7 @@
   "name": "md2pdf",
   "displayName": "md2pdf — Markdown + Mermaid to PDF (offline)",
   "description": "Export the current Markdown file to PDF with GFM tables, task lists, footnotes, syntax-highlighted code and Mermaid diagrams. Pure Rust/WASM, no Node/browser/LaTeX, works fully offline.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "hari",
   "license": "MIT",
   "repository": {
@@ -161,6 +161,7 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
+    "test:wasm": "node scripts/wasm-smoke.cjs",
     "package": "npm run typecheck && npm run build && vsce package --no-dependencies",
     "vscode:prepublish": "npm run build"
   },

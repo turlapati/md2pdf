@@ -83,6 +83,7 @@ jobs:
         run: |
           npm ci
           npm run build:wasm
+          npm run test:wasm
           npm run package
       - uses: actions/upload-artifact@v7
         with: { name: vsix, path: vscode-extension/*.vsix }

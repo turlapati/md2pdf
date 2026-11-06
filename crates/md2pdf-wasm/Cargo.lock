@@ -1245,7 +1245,7 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "md2pdf-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "mermaid-rs-renderer",
  "pulldown-cmark",
@@ -1258,7 +1258,7 @@ dependencies = [
 
 [[package]]
 name = "md2pdf-wasm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "getrandom 0.2.17",
  "getrandom 0.3.4",
@@ -1287,8 +1287,6 @@ dependencies = [
 [[package]]
 name = "mermaid-rs-renderer"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cb5b469222ce6b9896edf0a969cf68464f5a028ef394fd6643f00bd943df117"
 dependencies = [
  "anyhow",
  "fontdb",

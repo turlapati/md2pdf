@@ -3,10 +3,10 @@ resolver = "2"
 members = ["crates/md2pdf-core", "crates/md2pdf-cli"]
 # md2pdf-wasm is excluded from the default build; build it with:
 #   wasm-pack build crates/md2pdf-wasm --target nodejs --release
-exclude = ["crates/md2pdf-wasm"]
+exclude = ["crates/md2pdf-wasm", "third_party/mermaid-rs-renderer"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.92"
 license = "MIT"

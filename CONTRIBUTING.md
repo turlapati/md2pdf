@@ -8,6 +8,7 @@ crates/md2pdf-cli/    md2pdf command-line binary
 crates/md2pdf-wasm/   wasm-bindgen wrapper (excluded from the default workspace build)
 vscode-extension/     VS Code extension (TypeScript), WASM or native backend
 examples/             kitchen-sink.md exercising every feature, plus edge cases
+third_party/          mermaid-rs-renderer 0.3.1 patched for wasm32 (used by md2pdf-wasm only)
 .github/workflows/    ci.yml (PRs and master) and release.yml (v* tags)
 ```
 
@@ -31,8 +32,16 @@ rustup target add wasm32-unknown-unknown
 cd vscode-extension
 npm install
 npm run build:wasm               # → vscode-extension/wasm/
+npm run test:wasm                # render every file in examples/ through the WASM module
 npm run package                  # → md2pdf-<version>.vsix
 ```
+
+The WASM build uses a patched copy of `mermaid-rs-renderer` in
+`third_party/` (via `[patch.crates-io]` in `crates/md2pdf-wasm/Cargo.toml`):
+upstream calls `std::time::Instant::now()`, which aborts on
+`wasm32-unknown-unknown`. When upgrading `mermaid-rs-renderer`, re-copy its
+`src/` and reapply `src/time_compat.rs` plus the `use crate::time_compat::Instant`
+imports, then run `npm run test:wasm`.
 
 To bundle a native binary for the `native` backend, copy it to
 `vscode-extension/bin/<platform>-<arch>/md2pdf[.exe]` (for example
