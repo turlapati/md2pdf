@@ -1,0 +1,152 @@
+{
+  "name": "md2pdf",
+  "displayName": "md2pdf — Markdown + Mermaid to PDF (offline)",
+  "description": "Export the current Markdown file to PDF with GFM tables, task lists, footnotes, syntax-highlighted code and Mermaid diagrams. Pure Rust/WASM, no Node/browser/LaTeX, works fully offline.",
+  "version": "0.1.0",
+  "publisher": "hari",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "pdf",
+    "mermaid",
+    "export",
+    "offline"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "md2pdf.export",
+        "title": "Export to PDF",
+        "category": "md2pdf",
+        "icon": "$(file-pdf)"
+      },
+      {
+        "command": "md2pdf.exportTypst",
+        "title": "Export generated Typst source (debug)",
+        "category": "md2pdf"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "md2pdf.export",
+          "when": "resourceLangId == markdown",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "md2pdf.export",
+          "when": "resourceExtname == .md",
+          "group": "md2pdf"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "md2pdf.export",
+          "when": "resourceLangId == markdown"
+        },
+        {
+          "command": "md2pdf.exportTypst",
+          "when": "resourceLangId == markdown"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "md2pdf.export",
+        "key": "ctrl+shift+alt+p",
+        "mac": "cmd+shift+alt+p",
+        "when": "editorLangId == markdown"
+      }
+    ],
+    "configuration": {
+      "title": "md2pdf",
+      "properties": {
+        "md2pdf.backend": {
+          "type": "string",
+          "enum": [
+            "wasm",
+            "native"
+          ],
+          "default": "wasm",
+          "enumDescriptions": [
+            "Run the compiler as a WebAssembly module inside the extension host (no child process; best on locked-down machines).",
+            "Spawn the md2pdf native binary (faster for very large documents; may be blocked by endpoint protection)."
+          ],
+          "description": "Which compiler backend to use."
+        },
+        "md2pdf.nativeBinaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the md2pdf executable when backend = native. Leave empty to use the one bundled in the extension's bin/ folder."
+        },
+        "md2pdf.paper": {
+          "type": "string",
+          "enum": [
+            "a4",
+            "letter"
+          ],
+          "default": "a4",
+          "description": "Paper size."
+        },
+        "md2pdf.fontSize": {
+          "type": "number",
+          "default": 10.5,
+          "description": "Body font size in points."
+        },
+        "md2pdf.toc": {
+          "type": "boolean",
+          "default": false,
+          "description": "Insert a table of contents."
+        },
+        "md2pdf.numberHeadings": {
+          "type": "boolean",
+          "default": false,
+          "description": "Number headings (1, 1.1, …)."
+        },
+        "md2pdf.outputDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Directory for generated PDFs, relative to the Markdown file. Empty = next to the Markdown file."
+        },
+        "md2pdf.openAfterExport": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open the PDF with the system viewer after export."
+        },
+        "md2pdf.exportOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Re-export the PDF every time a Markdown file is saved."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:wasm": "wasm-pack build ../crates/md2pdf-wasm --target nodejs --release --out-dir ../../vscode-extension/wasm --out-name md2pdf",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run typecheck && npm run build && vsce package --no-dependencies --allow-missing-repository",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^4.1.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.6.0"
+  }
+}

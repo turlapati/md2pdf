@@ -1,0 +1,26 @@
+[package]
+name = "md2pdf-wasm"
+description = "wasm-bindgen binding for md2pdf-core (Node / VS Code extension host)"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+md2pdf-core = { path = "../md2pdf-core" }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+# getrandom is pulled in transitively (via typst → fastrand/ahash etc.).
+# On wasm32-unknown-unknown it needs an explicit backend.
+getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

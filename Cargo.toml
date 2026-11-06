@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = ["crates/md2pdf-core", "crates/md2pdf-cli"]
+# md2pdf-wasm is excluded from the default build; build it with:
+#   wasm-pack build crates/md2pdf-wasm --target nodejs --release
+exclude = ["crates/md2pdf-wasm"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.92"
+license = "MIT"
+
+[workspace.dependencies]
+typst = "0.15"
+typst-pdf = "0.15"
+typst-layout = "0.15"
+typst-assets = { version = "0.15", features = ["fonts"] }
+pulldown-cmark = { version = "0.13", default-features = false }
+mermaid-rs-renderer = { version = "0.3", default-features = false }
+anyhow = "1"
+thiserror = "2"
+time = { version = "0.3", features = ["local-offset"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"

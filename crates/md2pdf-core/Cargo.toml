@@ -1,0 +1,16 @@
+[package]
+name = "md2pdf-core"
+description = "Markdown (GFM) + Mermaid -> PDF, in pure Rust via Typst"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+typst = { workspace = true }
+typst-pdf = { workspace = true }
+typst-layout = { workspace = true }
+typst-assets = { workspace = true }
+pulldown-cmark = { workspace = true }
+mermaid-rs-renderer = { workspace = true }
+thiserror = { workspace = true }

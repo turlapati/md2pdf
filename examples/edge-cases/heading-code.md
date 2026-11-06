@@ -1,0 +1,1 @@
+# Use `foo()` and [link](https://x.y) in *heading*
