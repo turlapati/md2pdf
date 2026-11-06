@@ -17,3 +17,5 @@ md2pdf-core = { path = "../md2pdf-core" }
 clap = { version = "4.5", features = ["derive"] }
 anyhow = { workspace = true }
 time = { workspace = true }
+# Only used with --remote-images embed.
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }

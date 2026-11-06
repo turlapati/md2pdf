@@ -125,6 +125,19 @@
           "default": false,
           "description": "Number headings (1, 1.1, …)."
         },
+        "md2pdf.remoteImages": {
+          "type": "string",
+          "enum": [
+            "altText",
+            "embed"
+          ],
+          "default": "altText",
+          "enumDescriptions": [
+            "Render the image's alt text as a link to the image URL. Nothing is downloaded; export stays fully offline.",
+            "Download http(s) images (e.g. README badges) and embed them in the PDF. Falls back to alt text if a download fails."
+          ],
+          "description": "How images with an http(s) URL are rendered."
+        },
         "md2pdf.outputDirectory": {
           "type": "string",
           "default": "",

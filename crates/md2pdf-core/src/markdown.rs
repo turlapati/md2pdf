@@ -16,7 +16,7 @@ use pulldown_cmark::{
 };
 
 use crate::escape;
-use crate::{Config, Paper};
+use crate::{Config, Paper, RemoteImages};
 
 /// Result of translation: Typst source plus the virtual files it references.
 pub struct Translated {
@@ -49,6 +49,47 @@ pub fn local_asset_paths(md: &str) -> Vec<String> {
         }
     }
     set.into_iter().collect()
+}
+
+/// `http(s)://` image URLs referenced by the document, as written. With
+/// [`crate::RemoteImages::Embed`], hosts download these and pass the bytes in
+/// `assets` keyed by URL.
+pub fn remote_image_urls(md: &str) -> Vec<String> {
+    let mut set = BTreeSet::new();
+    for ev in Parser::new_ext(md, parser_options()) {
+        if let Event::Start(Tag::Image { dest_url, .. }) = ev {
+            if is_http_url(&dest_url) {
+                set.insert(dest_url.to_string());
+            }
+        }
+    }
+    set.into_iter().collect()
+}
+
+fn is_http_url(url: &str) -> bool {
+    let lower = url.trim().to_ascii_lowercase();
+    lower.starts_with("http://") || lower.starts_with("https://")
+}
+
+/// Image format from magic bytes; remote URLs often have no usable extension.
+fn sniff_image_format(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Some("png");
+    }
+    if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return Some("jpg");
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Some("gif");
+    }
+    if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        return Some("webp");
+    }
+    let head = String::from_utf8_lossy(&bytes[..bytes.len().min(1024)]);
+    if head.contains("<svg") {
+        return Some("svg");
+    }
+    None
 }
 
 fn is_local_path(url: &str) -> bool {
@@ -93,8 +134,11 @@ pub struct Translator<'a> {
     first_h1: Option<String>,
     /// Raw code-block accumulation.
     code: Option<(String, String)>,
-    /// Inside an image tag we swallow the alt-text events.
+    /// Inside an image tag the alt-text events are collected, not emitted.
     image_depth: usize,
+    /// (destination, title, alt text) of the image being collected.
+    pending_image: Option<(String, String, String)>,
+    link_depth: usize,
     in_metadata: bool,
     metadata_title: Option<String>,
     html_warned: bool,
@@ -119,6 +163,8 @@ impl<'a> Translator<'a> {
             first_h1: None,
             code: None,
             image_depth: 0,
+            pending_image: None,
+            link_depth: 0,
             in_metadata: false,
             metadata_title: None,
             html_warned: false,
@@ -313,11 +359,28 @@ impl<'a> Translator<'a> {
 
     fn emit(&mut self, ev: &Event<'_>) {
         // While inside an image tag, the alt text arrives as ordinary events;
-        // we have already consumed what we need, so swallow them.
+        // collect its plain text and emit the image once the tag closes.
         if self.image_depth > 0 {
             match ev {
                 Event::Start(Tag::Image { .. }) => self.image_depth += 1,
-                Event::End(TagEnd::Image) => self.image_depth -= 1,
+                Event::End(TagEnd::Image) => {
+                    self.image_depth -= 1;
+                    if self.image_depth == 0 {
+                        if let Some((dest, title, alt)) = self.pending_image.take() {
+                            self.image(&dest, &title, alt.trim());
+                        }
+                    }
+                }
+                Event::Text(t) | Event::Code(t) => {
+                    if let Some((_, _, alt)) = &mut self.pending_image {
+                        alt.push_str(t);
+                    }
+                }
+                Event::SoftBreak | Event::HardBreak => {
+                    if let Some((_, _, alt)) = &mut self.pending_image {
+                        alt.push(' ');
+                    }
+                }
                 _ => {}
             }
             return;
@@ -495,6 +558,7 @@ impl<'a> Translator<'a> {
             Tag::Superscript => self.out().push_str("#super["),
             Tag::Subscript => self.out().push_str("#sub["),
             Tag::Link { dest_url, .. } => {
+                self.link_depth += 1;
                 let dest = dest_url.to_string();
                 if let Some(anchor) = dest.strip_prefix('#') {
                     let label = escape::label_safe(&escape::slug(anchor));
@@ -515,7 +579,7 @@ impl<'a> Translator<'a> {
             }
             Tag::Image { dest_url, title, .. } => {
                 self.image_depth = 1;
-                self.image(dest_url, title);
+                self.pending_image = Some((dest_url.to_string(), title.to_string(), String::new()));
             }
             Tag::MetadataBlock(MetadataBlockKind::YamlStyle)
             | Tag::MetadataBlock(MetadataBlockKind::PlusesStyle) => {
@@ -585,8 +649,11 @@ impl<'a> Translator<'a> {
             | TagEnd::Strong
             | TagEnd::Strikethrough
             | TagEnd::Superscript
-            | TagEnd::Subscript
-            | TagEnd::Link => self.out().push_str("];"),
+            | TagEnd::Subscript => self.out().push_str("];"),
+            TagEnd::Link => {
+                self.link_depth = self.link_depth.saturating_sub(1);
+                self.out().push_str("];");
+            }
             TagEnd::Image => {}
             TagEnd::MetadataBlock(_) => {}
         }
@@ -629,11 +696,9 @@ impl<'a> Translator<'a> {
         }
     }
 
-    fn image(&mut self, dest: &str, title: &str) {
+    fn image(&mut self, dest: &str, title: &str, alt: &str) {
         if !is_local_path(dest) {
-            self.warn(format!("remote image skipped (no network access): {dest}"));
-            let s = format!("#text(fill: luma(120))[\\[image: {}\\]];", escape::markup(dest));
-            self.out().push_str(&s);
+            self.remote_image(dest, alt);
             return;
         }
         let Some(bytes) = self.assets.get(dest) else {
@@ -654,9 +719,49 @@ impl<'a> Translator<'a> {
             self.out().push_str(&s);
             return;
         }
+        let path = self.add_asset(bytes.clone(), &ext);
+        self.block_image(&path, title);
+    }
+
+    /// Remote images are never fetched by the core. With `RemoteImages::Embed`
+    /// the host may have supplied the bytes keyed by URL; otherwise the alt
+    /// text is shown, linked to the image URL unless already inside a link.
+    fn remote_image(&mut self, dest: &str, alt: &str) {
+        let fetched = match self.cfg.remote_images {
+            RemoteImages::Embed => self
+                .assets
+                .get(dest)
+                .and_then(|b| sniff_image_format(b).map(|ext| (b.clone(), ext))),
+            RemoteImages::AltText => None,
+        };
+        if let Some((bytes, ext)) = fetched {
+            let path = self.add_asset(bytes, ext);
+            if self.link_depth > 0 {
+                // Typically a README badge: keep it inline at text height.
+                let s = format!("#box(baseline: 20%, image(\"{path}\", height: 1.4em));");
+                self.out().push_str(&s);
+            } else {
+                self.block_image(&path, "");
+            }
+            return;
+        }
+        let label = escape::markup(if alt.is_empty() { dest } else { alt });
+        let s = if self.link_depth > 0 {
+            label
+        } else {
+            format!("#link(\"{}\")[{label}];", escape::string(dest))
+        };
+        self.out().push_str(&s);
+    }
+
+    fn add_asset(&mut self, bytes: Vec<u8>, ext: &str) -> String {
         let path = format!("/assets/{}.{ext}", self.asset_count);
         self.asset_count += 1;
-        self.files.insert(path.clone(), bytes.clone());
+        self.files.insert(path.clone(), bytes);
+        path
+    }
+
+    fn block_image(&mut self, path: &str, title: &str) {
         let s = if title.trim().is_empty() {
             format!("\n#align(center, fit-image(\"{path}\"))\n\n")
         } else {

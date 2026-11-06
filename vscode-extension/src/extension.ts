@@ -40,6 +40,7 @@ function renderOptions(): RenderOptions {
     fontSize: c.get<number>('fontSize', 10.5),
     toc: c.get<boolean>('toc', false),
     numberHeadings: c.get<boolean>('numberHeadings', false),
+    remoteImages: c.get<'altText' | 'embed'>('remoteImages', 'altText'),
   };
 }
 

@@ -16,6 +16,7 @@ export interface RenderOptions {
   toc: boolean;
   numberHeadings: boolean;
   title?: string;
+  remoteImages: 'altText' | 'embed';
 }
 
 export interface RenderInput {
@@ -43,6 +44,7 @@ export interface Backend {
 
 interface WasmModule {
   local_asset_paths(md: string): string[];
+  remote_image_urls(md: string): string[];
   render(md: string, assets: Record<string, Uint8Array>, options: unknown): {
     pdf: Uint8Array;
     warnings: string[];
@@ -50,6 +52,20 @@ interface WasmModule {
     free(): void;
   };
   to_typst(md: string, assets: Record<string, Uint8Array>, options: unknown): string;
+}
+
+const MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024;
+
+async function fetchImage(url: string): Promise<Uint8Array> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(15_000), redirect: 'follow' });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  }
+  const body = new Uint8Array(await res.arrayBuffer());
+  if (body.byteLength > MAX_REMOTE_IMAGE_BYTES) {
+    throw new Error(`larger than ${MAX_REMOTE_IMAGE_BYTES / (1024 * 1024)} MB`);
+  }
+  return body;
 }
 
 function todayTuple(): [number, number, number] {
@@ -77,9 +93,26 @@ export class WasmBackend implements Backend {
     return this.mod;
   }
 
-  private async collectAssets(md: string, baseDir: string): Promise<Record<string, Uint8Array>> {
+  private async collectAssets(
+    md: string,
+    baseDir: string,
+    options: RenderOptions,
+  ): Promise<{ assets: Record<string, Uint8Array>; warnings: string[] }> {
     const mod = this.load();
     const assets: Record<string, Uint8Array> = {};
+    const warnings: string[] = [];
+    if (options.remoteImages === 'embed') {
+      await Promise.all(
+        mod.remote_image_urls(md).map(async (url) => {
+          try {
+            assets[url] = await fetchImage(url);
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            warnings.push(`cannot fetch remote image ${url} (showing alt text): ${reason}`);
+          }
+        }),
+      );
+    }
     for (const rel of mod.local_asset_paths(md)) {
       const abs = path.resolve(baseDir, rel);
       // Guard against ../../ escaping the workspace folder.
@@ -93,7 +126,7 @@ export class WasmBackend implements Backend {
         // Missing files are reported by the core as warnings.
       }
     }
-    return assets;
+    return { assets, warnings };
   }
 
   private wasmOptions(o: RenderOptions) {
@@ -104,15 +137,16 @@ export class WasmBackend implements Backend {
       numberHeadings: o.numberHeadings,
       title: o.title,
       today: todayTuple(),
+      remoteImages: o.remoteImages,
     };
   }
 
   async render(input: RenderInput): Promise<RenderOutput> {
     const mod = this.load();
-    const assets = await this.collectAssets(input.markdown, input.baseDir);
+    const { assets, warnings } = await this.collectAssets(input.markdown, input.baseDir, input.options);
     const result = mod.render(input.markdown, assets, this.wasmOptions(input.options));
     try {
-      return { pdf: result.pdf, warnings: result.warnings, pages: result.pages };
+      return { pdf: result.pdf, warnings: warnings.concat(result.warnings), pages: result.pages };
     } finally {
       result.free();
     }
@@ -120,8 +154,8 @@ export class WasmBackend implements Backend {
 
   async toTypst(input: RenderInput) {
     const mod = this.load();
-    const assets = await this.collectAssets(input.markdown, input.baseDir);
-    return { source: mod.to_typst(input.markdown, assets, this.wasmOptions(input.options)), warnings: [] };
+    const { assets, warnings } = await this.collectAssets(input.markdown, input.baseDir, input.options);
+    return { source: mod.to_typst(input.markdown, assets, this.wasmOptions(input.options)), warnings };
   }
 }
 
@@ -149,7 +183,17 @@ export class NativeBackend implements Backend {
   }
 
   private args(o: RenderOptions, extra: string[]): string[] {
-    const a = ['-', '--output', '-', '--paper', o.paper, '--font-size', String(o.fontSize)];
+    const a = [
+      '-',
+      '--output',
+      '-',
+      '--paper',
+      o.paper,
+      '--font-size',
+      String(o.fontSize),
+      '--remote-images',
+      o.remoteImages === 'embed' ? 'embed' : 'alt-text',
+    ];
     if (o.toc) {
       a.push('--toc');
     }

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use md2pdf_core::{Config, Paper};
+use md2pdf_core::{Config, Paper, RemoteImages};
 
 /// Markdown (GFM) + Mermaid → PDF. Single binary, no runtime dependencies.
 #[derive(Parser, Debug)]
@@ -51,6 +51,11 @@ struct Cli {
     #[arg(long)]
     font_dir: Option<PathBuf>,
 
+    /// Remote (http/https) images: "alt-text" renders the alt text linked to
+    /// the image URL (no network access); "embed" downloads and embeds them
+    #[arg(long, default_value = "alt-text")]
+    remote_images: String,
+
     /// Write the generated Typst source instead of a PDF (for debugging)
     #[arg(long)]
     emit_typst: bool,
@@ -92,6 +97,10 @@ fn main() -> Result<()> {
     };
 
     let paper: Paper = cli.paper.parse().map_err(|e: String| anyhow::anyhow!(e))?;
+    let remote_images: RemoteImages = cli
+        .remote_images
+        .parse()
+        .map_err(|e: String| anyhow::anyhow!(e))?;
     let today = time::OffsetDateTime::now_local()
         .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
     let cfg = Config {
@@ -104,6 +113,7 @@ fn main() -> Result<()> {
         mono_font: cli.mono_font.clone(),
         extra_fonts,
         today: Some((today.year(), today.month() as u8, today.day())),
+        remote_images,
     };
 
     // Resolve local images relative to the Markdown file.
@@ -117,6 +127,20 @@ fn main() -> Result<()> {
             Err(e) => {
                 if !cli.quiet {
                     eprintln!("warning: cannot read image {}: {e}", p.display());
+                }
+            }
+        }
+    }
+    if remote_images == RemoteImages::Embed {
+        for url in md2pdf_core::remote_image_urls(&md) {
+            match fetch(&url) {
+                Ok(bytes) => {
+                    assets.insert(url, bytes);
+                }
+                Err(e) => {
+                    if !cli.quiet {
+                        eprintln!("warning: cannot fetch remote image {url} (showing alt text): {e}");
+                    }
                 }
             }
         }
@@ -168,6 +192,22 @@ fn write_out(path: &Path, bytes: &[u8]) -> Result<()> {
         return Ok(());
     }
     fs::write(path, bytes).with_context(|| format!("writing {}", path.display()))
+}
+
+const MAX_REMOTE_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
+
+fn fetch(url: &str) -> Result<Vec<u8>> {
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_secs(15)))
+        .build()
+        .into();
+    let mut resp = agent.get(url).call()?;
+    let bytes = resp
+        .body_mut()
+        .with_config()
+        .limit(MAX_REMOTE_IMAGE_BYTES)
+        .read_to_vec()?;
+    Ok(bytes)
 }
 
 fn load_fonts(dir: &Path) -> Result<Vec<Vec<u8>>> {

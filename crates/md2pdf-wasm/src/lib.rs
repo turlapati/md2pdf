@@ -7,7 +7,8 @@
 //! The JS side must:
 //! 1. call `local_asset_paths(md)` to learn which local images the document
 //!    references,
-//! 2. read those files itself (the WASM module has no filesystem),
+//! 2. read those files itself (the WASM module has no filesystem), and with
+//!    `remoteImages: "embed"` download the URLs from `remote_image_urls(md)`,
 //! 3. call `render(md, assets, options)` where `assets` is a plain object
 //!    `{ "<path as written>": Uint8Array }`.
 
@@ -28,11 +29,20 @@ pub struct Options {
     mono_font: Option<String>,
     /// [year, month, day] from the host (no clock in wasm32-unknown-unknown).
     today: Option<(i32, u8, u8)>,
+    /// "altText" (default) or "embed".
+    remote_images: Option<String>,
 }
 
 #[wasm_bindgen]
 pub fn local_asset_paths(md: &str) -> Vec<String> {
     md2pdf_core::local_asset_paths(md)
+}
+
+/// http(s) image URLs the host should download when `remoteImages: "embed"`;
+/// pass the bytes in `assets` keyed by URL.
+#[wasm_bindgen]
+pub fn remote_image_urls(md: &str) -> Vec<String> {
+    md2pdf_core::remote_image_urls(md)
 }
 
 #[wasm_bindgen]
@@ -81,6 +91,9 @@ fn build_config(options: JsValue) -> Result<md2pdf_core::Config, JsValue> {
         cfg.mono_font = f;
     }
     cfg.today = o.today;
+    if let Some(r) = o.remote_images {
+        cfg.remote_images = r.parse().map_err(|e: String| JsValue::from_str(&e))?;
+    }
     Ok(cfg)
 }
 

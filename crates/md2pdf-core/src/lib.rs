@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use typst::foundations::Datetime;
 use typst_layout::PagedDocument;
 
-pub use markdown::local_asset_paths;
+pub use markdown::{local_asset_paths, remote_image_urls};
 pub use world::font_families;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -38,6 +38,28 @@ impl std::str::FromStr for Paper {
             "a4" => Ok(Paper::A4),
             "letter" | "us-letter" | "us_letter" | "usletter" => Ok(Paper::UsLetter),
             other => Err(format!("unknown paper size '{other}' (use a4 or letter)")),
+        }
+    }
+}
+
+/// How images with an `http(s)://` URL are rendered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RemoteImages {
+    /// Render the alt text as a link to the image URL. Nothing is fetched.
+    #[default]
+    AltText,
+    /// Embed the image if the host supplied its bytes in `assets` (keyed by
+    /// URL, see [`remote_image_urls`]); otherwise fall back to alt text.
+    Embed,
+}
+
+impl std::str::FromStr for RemoteImages {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().replace(['-', '_'], "").as_str() {
+            "alttext" | "alt" => Ok(RemoteImages::AltText),
+            "embed" => Ok(RemoteImages::Embed),
+            _ => Err(format!("unknown remote-images mode '{s}' (use alt-text or embed)")),
         }
     }
 }
@@ -60,6 +82,7 @@ pub struct Config {
     pub extra_fonts: Vec<Vec<u8>>,
     /// Date used for `datetime.today()` and PDF metadata (year, month, day).
     pub today: Option<(i32, u8, u8)>,
+    pub remote_images: RemoteImages,
 }
 
 impl Default for Config {
@@ -74,6 +97,7 @@ impl Default for Config {
             mono_font: "DejaVu Sans Mono".into(),
             extra_fonts: Vec::new(),
             today: None,
+            remote_images: RemoteImages::AltText,
         }
     }
 }
@@ -104,7 +128,9 @@ pub fn to_typst(md: &str, cfg: &Config, assets: &HashMap<String, Vec<u8>>) -> (S
 /// Render Markdown to PDF bytes.
 ///
 /// `assets` maps each path returned by [`local_asset_paths`] (verbatim, as
-/// written in the Markdown) to the file's bytes.
+/// written in the Markdown) to the file's bytes, and — with
+/// [`RemoteImages::Embed`] — each URL from [`remote_image_urls`] to the
+/// downloaded bytes. Hosts report fetch failures themselves.
 pub fn render(md: &str, cfg: &Config, assets: &HashMap<String, Vec<u8>>) -> Result<Output, Error> {
     let t = markdown::Translator::new(cfg, assets).translate(md);
     let mut warnings = t.warnings;
@@ -198,6 +224,37 @@ mod tests {
         assert!(src.contains("\\#set page"), "{src}");
         let out = run("#set page(paper: \"a0\")\n");
         assert_eq!(out.pages, 1);
+    }
+
+    const BADGE_MD: &str = "[![ci](https://example.com/ci.svg)](https://example.com/actions)\n\n![logo](https://example.com/logo)\n";
+    const SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="10"><rect width="40" height="10" fill="green"/></svg>"#;
+
+    #[test]
+    fn remote_images_default_to_linked_alt_text() {
+        let out = run(BADGE_MD);
+        assert!(out.warnings.is_empty(), "{:?}", out.warnings);
+        let src = to_typst(BADGE_MD, &Config::default(), &HashMap::new()).0;
+        assert!(src.contains("#link(\"https://example.com/actions\")[ci];"), "{src}");
+        assert!(src.contains("#link(\"https://example.com/logo\")[logo];"), "{src}");
+        assert!(!src.contains("image(\""), "{src}");
+    }
+
+    #[test]
+    fn remote_images_embed_supplied_bytes() {
+        assert_eq!(
+            remote_image_urls(BADGE_MD),
+            vec!["https://example.com/ci.svg".to_string(), "https://example.com/logo".to_string()]
+        );
+        let cfg = Config { remote_images: RemoteImages::Embed, ..Default::default() };
+        let mut assets = HashMap::new();
+        assets.insert("https://example.com/ci.svg".to_string(), SVG.to_vec());
+        let src = to_typst(BADGE_MD, &cfg, &assets).0;
+        assert!(src.contains("#box(baseline: 20%, image(\"/assets/0.svg\""), "{src}");
+        // Not supplied (fetch failed): falls back to alt text.
+        assert!(src.contains("#link(\"https://example.com/logo\")[logo];"), "{src}");
+        let out = render(BADGE_MD, &cfg, &assets).expect("render");
+        assert!(out.pdf.starts_with(b"%PDF"));
+        assert!(out.warnings.is_empty(), "{:?}", out.warnings);
     }
 
     #[test]
