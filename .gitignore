@@ -1,5 +1,30 @@
+# Rust build output (workspace and the standalone wasm crate)
 target/
-examples/*.pdf
-examples/*.typ
-examples/*.png
+
+# VS Code extension build output
+vscode-extension/node_modules/
+vscode-extension/dist/
+vscode-extension/wasm/
+vscode-extension/bin/
 *.vsix
+
+# Generated example output
+examples/**/*.pdf
+examples/**/*.typ
+examples/**/*.png
+
+# Internal notes
+REVIEW.md
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+*.tmp
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
