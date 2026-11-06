@@ -1,53 +1,59 @@
 name: ci
+
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [master]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --release --workspace
-      - run: cargo run --release -- examples/kitchen-sink.md --toc
-      - uses: actions/upload-artifact@v4
-        with: { name: kitchen-sink-pdf, path: examples/kitchen-sink.pdf }
-
-  binaries:
-    needs: test
+    name: test (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, ext: .exe, platform: win32-x64 }
-          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu, ext: "",  platform: linux-x64 }
-          - { os: macos-latest,   target: aarch64-apple-darwin,    ext: "",  platform: darwin-arm64 }
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with: { targets: "${{ matrix.target }}" }
+        with: { components: clippy }
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release --target ${{ matrix.target }} -p md2pdf
-      - uses: actions/upload-artifact@v4
-        with:
-          name: md2pdf-${{ matrix.platform }}
-          path: target/${{ matrix.target }}/release/md2pdf${{ matrix.ext }}
+      - run: cargo test --workspace
+      - run: cargo clippy --workspace --all-targets
+      - name: Render kitchen-sink example
+        run: cargo run -p md2pdf -- examples/kitchen-sink.md --toc
+      - if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with: { name: kitchen-sink-pdf, path: examples/kitchen-sink.pdf }
 
-  wasm-and-vsix:
-    needs: test
+  extension:
+    name: wasm + vsix
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: wasm32-unknown-unknown }
       - uses: Swatinem/rust-cache@v2
+        with: { workspaces: "crates/md2pdf-wasm -> target" }
+      - uses: taiki-e/install-action@v2
+        with: { tool: wasm-pack }
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
-      - run: cargo install wasm-pack --locked
-      - run: cd vscode-extension && npm ci && npm run build:wasm && npm run package
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - working-directory: vscode-extension
+        run: |
+          npm ci
+          npm run build:wasm
+          npm run package
       - uses: actions/upload-artifact@v4
         with: { name: vsix, path: vscode-extension/*.vsix }

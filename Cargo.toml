@@ -10,6 +10,8 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.92"
 license = "MIT"
+repository = "https://github.com/turlapati/md2pdf"
+homepage = "https://github.com/turlapati/md2pdf"
 
 [workspace.dependencies]
 typst = "0.15"

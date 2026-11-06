@@ -1,5 +1,8 @@
 # md2pdf
 
+[![ci](https://github.com/turlapati/md2pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/turlapati/md2pdf/actions/workflows/ci.yml)
+[![release](https://github.com/turlapati/md2pdf/actions/workflows/release.yml/badge.svg)](https://github.com/turlapati/md2pdf/releases/latest)
+
 GitHub-Flavored Markdown + Mermaid → PDF. One binary (or one WASM module), no
 Node, no browser, no LaTeX, no Pandoc, no system fonts, no network.
 
@@ -26,7 +29,36 @@ crates/md2pdf-cli/    `md2pdf` command-line binary
 crates/md2pdf-wasm/   wasm-bindgen wrapper (excluded from the default workspace build)
 vscode-extension/     VS Code extension (TypeScript), WASM or native backend
 examples/             kitchen-sink.md exercising every feature
-.github/workflows/    CI: builds binaries for win/mac/linux, the wasm package and the .vsix
+.github/workflows/    ci.yml (PRs / master) and release.yml (tags v*)
+```
+
+## Download
+
+Prebuilt artifacts are attached to every [GitHub Release](https://github.com/turlapati/md2pdf/releases):
+
+* `md2pdf-<version>.vsix` — VS Code extension (WASM backend, works on any OS)
+* `md2pdf-<version>-<platform>[.exe]` — standalone CLI for `win32-x64`, `linux-x64`, `darwin-arm64`, `darwin-x64`
+
+Every CI run (PRs, pushes to `master`, or a manual *Run workflow* on the
+[ci workflow](https://github.com/turlapati/md2pdf/actions/workflows/ci.yml)) also uploads
+a `vsix` artifact you can download from the run's summary page.
+
+## CI and releases
+
+* **ci.yml** — on every pull request and push to `master`: `cargo test` + `clippy` on
+  Linux and Windows, renders `examples/kitchen-sink.md`, builds the WASM module and packages the `.vsix`.
+* **release.yml** — on pushing a `v*` tag: checks the tag matches the versions in
+  `Cargo.toml` and `vscode-extension/package.json`, runs tests, builds the CLI for four
+  platforms and the `.vsix`, and publishes them as a GitHub Release (tags containing `-`,
+  e.g. `v0.2.0-rc.1`, become pre-releases).
+
+To cut a release:
+
+```sh
+# bump version in Cargo.toml ([workspace.package]) and vscode-extension/package.json
+git commit -am "release v0.1.0"
+git tag v0.1.0
+git push origin master v0.1.0
 ```
 
 ## Build the CLI

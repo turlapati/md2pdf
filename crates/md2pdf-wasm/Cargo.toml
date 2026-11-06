@@ -4,6 +4,8 @@ description = "wasm-bindgen binding for md2pdf-core (Node / VS Code extension ho
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+repository = "https://github.com/turlapati/md2pdf"
+homepage = "https://github.com/turlapati/md2pdf"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
