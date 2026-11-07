@@ -99,3 +99,7 @@ Actions tab (*Run workflow*).
 the CLI for Windows x64, Linux x64 and macOS (arm64 and x64) plus the `.vsix`,
 and publishes them as a GitHub Release. Tags containing `-` (e.g. `v0.2.0-rc.1`)
 become pre-releases.
+
+Stable tags also publish the `.vsix` to [Open VSX](https://open-vsx.org/extension/turlapati/md2pdf)
+in the `turlapati` namespace, using the `OVSX_PAT` repository secret. Pre-release
+tags are not published there.

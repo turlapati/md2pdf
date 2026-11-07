@@ -106,3 +106,16 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: assets/*
+
+  open-vsx:
+    needs: [check-version, vsix]
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { name: vsix, path: vsix }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22 }
+      - run: npx --yes ovsx publish vsix/*.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}

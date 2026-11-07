@@ -45,8 +45,10 @@ Download from the [latest release](https://github.com/turlapati/md2pdf/releases/
 | `md2pdf-<version>-darwin-arm64` | Command-line tool for macOS (Apple Silicon) |
 | `md2pdf-<version>-darwin-x64` | Command-line tool for macOS (Intel) |
 
-**VS Code extension:** in VS Code press `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS),
-run **Extensions: Install from VSIX…** and pick the downloaded `.vsix` file.
+**VS Code extension:** in Cursor and VSCodium, open the Extensions view and
+search for **md2pdf**. In VS Code, press `Ctrl+Shift+P` (`Cmd+Shift+P` on
+macOS), run **Extensions: Install from VSIX…**, and pick the downloaded `.vsix`
+file.
 
 **Command-line tool:** rename the file to `md2pdf` (`md2pdf.exe` on Windows) and
 put it somewhere on your `PATH`. On macOS and Linux, make it executable with
